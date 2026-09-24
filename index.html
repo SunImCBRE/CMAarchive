@@ -1,6 +1,7 @@
 <title>Comerica Work Orders</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 #gate{position:fixed;inset:0;z-index:9999;background:#18293A;display:flex;align-items:center;justify-content:center;padding:20px}
 .gate-box{background:#213245;border:1px solid #2B4060;border-radius:12px;padding:36px 32px;width:100%;max-width:360px;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center}
@@ -105,6 +106,28 @@ tr:hover td{background:var(--hover)}
 .btn-copy{background:#0068D6;color:#fff;border:none;border-radius:5px;padding:8px 16px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s;flex:1} .btn-copy:hover{background:#004EAA} .btn-copy.done{background:#1A7A4E}
 .btn-cancel{background:transparent;border:1px solid var(--brd);border-radius:5px;padding:8px 14px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--muted);cursor:pointer;transition:all .15s} .btn-cancel:hover{border-color:var(--tx);color:var(--tx)}
 @media(max-width:680px){.sidebar{width:100%;max-height:260px;flex-direction:row;flex-wrap:wrap;overflow-y:auto}.layout{flex-direction:column}.ss{flex:1;min-width:150px}}
+.msel{position:relative;width:100%}
+.msel-btn{width:100%;background:var(--surface);border:1px solid var(--brd);border-radius:5px;padding:5px 8px;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--tx);cursor:pointer;text-align:left;display:flex;align-items:center;gap:4px;min-height:28px;transition:border-color .15s;box-sizing:border-box}
+.msel-btn:hover,.msel-btn.open{border-color:#0068D6}
+.msel-lbl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.msel-arr{flex-shrink:0;color:var(--muted);font-size:9px;transition:transform .15s}
+.msel-btn.open .msel-arr{transform:rotate(180deg)}
+.msel-badge{background:#0068D6;color:#fff;border-radius:3px;padding:1px 5px;font-size:10px;font-weight:600;flex-shrink:0;line-height:1.4}
+.msel-drop{position:absolute;left:0;right:0;top:calc(100% + 3px);background:var(--surface);border:1px solid var(--brd);border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,.22);z-index:200;display:flex;flex-direction:column;max-height:240px}
+.msel-search{border:none;border-bottom:1px solid var(--brd);background:transparent;padding:7px 10px;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--tx);outline:none;flex-shrink:0}
+.msel-list{overflow-y:auto;flex:1}
+.msel-item{display:flex;align-items:center;gap:7px;padding:5px 10px;cursor:pointer;font-size:12px;color:var(--tx)}
+.msel-item:hover{background:var(--bg)}
+.msel-item input[type=checkbox]{accent-color:#0068D6;width:13px;height:13px;flex-shrink:0;cursor:pointer;margin:0}
+.msel-item label{flex:1;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.msel-foot{border-top:1px solid var(--brd);padding:4px 8px;display:flex;justify-content:flex-end;flex-shrink:0}
+.msel-clr{background:none;border:none;font-size:11px;color:var(--muted);cursor:pointer;padding:2px 4px} .msel-clr:hover{color:var(--tx)}
+.msel-empty{padding:8px 10px;font-size:12px;color:var(--muted);font-style:italic}
+.exp-opts{display:flex;flex-direction:column;gap:8px}
+.exp-opt{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--brd);border-radius:6px;cursor:pointer;font-size:13px;color:var(--tx);transition:border-color .15s}
+.exp-opt:hover{border-color:#0068D6}
+.exp-opt input[type=radio]{accent-color:#0068D6;cursor:pointer}
+.exp-cnt{font-size:11px;color:var(--muted);margin-left:4px}
 </style>
 
 <div class="topbar">
@@ -118,13 +141,13 @@ tr:hover td{background:var(--hover)}
 <div class="layout">
   <aside class="sidebar">
     <div class="ss"><div class="sl">Search</div><input class="si" id="f-q" type="text" placeholder="WO #, building, problem…" autocomplete="off"></div>
-    <div class="ss"><div class="sl">Division</div><select class="sq" id="f-dv"><option value="-1">All Divisions</option></select></div>
-    <div class="ss"><div class="sl">State / City</div><select class="sq" id="f-sc"><option value="-1">All Locations</option></select></div>
-    <div class="ss"><div class="sl">Building</div><select class="sq" id="f-bld"><option value="-1">All Buildings</option></select></div>
-    <div class="ss"><div class="sl">Status</div><select class="sq" id="f-st"><option value="-1">All Statuses</option></select></div>
-    <div class="ss"><div class="sl">Priority</div><select class="sq" id="f-pr"><option value="-1">All Priorities</option></select></div>
-    <div class="ss"><div class="sl">Order Type</div><select class="sq" id="f-ot"><option value="-1">All Types</option></select></div>
-    <div class="ss"><div class="sl">Problem Type</div><select class="sq" id="f-pd"><option value="-1">All Problems</option></select></div>
+    <div class="ss"><div class="sl">Division</div><div class="msel" id="ms-dv"><button class="msel-btn" type="button"><span class="msel-lbl">All Divisions</span><span class="msel-arr">▾</span></button><div class="msel-drop" hidden><input class="msel-search" type="text" placeholder="Search…" autocomplete="off"><div class="msel-list"></div><div class="msel-foot"><button class="msel-clr" type="button">Clear</button></div></div></div></div>
+    <div class="ss"><div class="sl">State / City</div><div class="msel" id="ms-sc"><button class="msel-btn" type="button"><span class="msel-lbl">All Locations</span><span class="msel-arr">▾</span></button><div class="msel-drop" hidden><input class="msel-search" type="text" placeholder="Search…" autocomplete="off"><div class="msel-list"></div><div class="msel-foot"><button class="msel-clr" type="button">Clear</button></div></div></div></div>
+    <div class="ss"><div class="sl">Building</div><div class="msel" id="ms-bld"><button class="msel-btn" type="button"><span class="msel-lbl">All Buildings</span><span class="msel-arr">▾</span></button><div class="msel-drop" hidden><input class="msel-search" type="text" placeholder="Search…" autocomplete="off"><div class="msel-list"></div><div class="msel-foot"><button class="msel-clr" type="button">Clear</button></div></div></div></div>
+    <div class="ss"><div class="sl">Status</div><div class="msel" id="ms-st"><button class="msel-btn" type="button"><span class="msel-lbl">All Statuses</span><span class="msel-arr">▾</span></button><div class="msel-drop" hidden><input class="msel-search" type="text" placeholder="Search…" autocomplete="off"><div class="msel-list"></div><div class="msel-foot"><button class="msel-clr" type="button">Clear</button></div></div></div></div>
+    <div class="ss"><div class="sl">Priority</div><div class="msel" id="ms-pr"><button class="msel-btn" type="button"><span class="msel-lbl">All Priorities</span><span class="msel-arr">▾</span></button><div class="msel-drop" hidden><input class="msel-search" type="text" placeholder="Search…" autocomplete="off"><div class="msel-list"></div><div class="msel-foot"><button class="msel-clr" type="button">Clear</button></div></div></div></div>
+    <div class="ss"><div class="sl">Order Type</div><div class="msel" id="ms-ot"><button class="msel-btn" type="button"><span class="msel-lbl">All Types</span><span class="msel-arr">▾</span></button><div class="msel-drop" hidden><input class="msel-search" type="text" placeholder="Search…" autocomplete="off"><div class="msel-list"></div><div class="msel-foot"><button class="msel-clr" type="button">Clear</button></div></div></div></div>
+    <div class="ss"><div class="sl">Problem Type</div><div class="msel" id="ms-pd"><button class="msel-btn" type="button"><span class="msel-lbl">All Problems</span><span class="msel-arr">▾</span></button><div class="msel-drop" hidden><input class="msel-search" type="text" placeholder="Search…" autocomplete="off"><div class="msel-list"></div><div class="msel-foot"><button class="msel-clr" type="button">Clear</button></div></div></div></div>
     <div class="ss"><div class="sl">Entered Date</div><div class="dp"><input class="sd" id="f-df" type="date" title="From"><input class="sd" id="f-dt" type="date" title="To"></div></div>
     <div class="ss"><button class="breset" id="btn-reset">↺  Reset filters</button></div>
   </aside>
@@ -166,11 +189,14 @@ tr:hover td{background:var(--hover)}
 </div>
 <div class="overlay" id="overlay" hidden>
   <div class="modal">
-    <div class="modal-title">Export CSV <button class="modal-close" id="modal-close">×</button></div>
-    <div class="modal-sub" id="modal-sub"></div>
-    <textarea class="modal-ta" id="modal-ta" readonly></textarea>
+    <div class="modal-title">Export to Excel <button class="modal-close" id="modal-close">×</button></div>
+    <div class="modal-sub">Choose which records to export:</div>
+    <div class="exp-opts">
+      <label class="exp-opt"><input type="radio" name="exp-scope" id="exp-r-filt" value="filtered" checked><span>Filtered results</span><span class="exp-cnt" id="exp-filt-cnt"></span></label>
+      <label class="exp-opt"><input type="radio" name="exp-scope" id="exp-r-all" value="all"><span>All records</span><span class="exp-cnt" id="exp-all-cnt"></span></label>
+    </div>
     <div class="modal-btns">
-      <button class="btn-copy" id="btn-copy">Copy to clipboard</button>
+      <button class="btn-copy" id="btn-dl">⬇ Download Excel</button>
       <button class="btn-cancel" id="btn-cancel">Close</button>
     </div>
   </div>
@@ -189,59 +215,117 @@ const C={DV:0,SC:1,S:2,P:3,O:4,T:5,B:6,E:7,C:8,COST:9,WO:10,PD:11,AGE:12,LH:13,A
 const SL={OAD:'Open/Assigned',D:'Dispatched',CMP:'Completed',CAN:'Cancelled',CPW:'Completed w/Work',CBT:'Closed/Billed',DAK:'Dispatched/Ack',DST:'Dispatched/Started',OVD:'Overdue',CP1:'Completed Ph.1',CWS:'Closed w/Svc',CP2:'Completed Ph.2',CBP:'Closed/Billed Prop'};
 const SC2={CMP:'tg',CPW:'tg',CWS:'tg',CP1:'tg',CP2:'tg',CBT:'tg',CBP:'tg',D:'ta',DAK:'ta',DST:'ta',OAD:'ta',OVD:'tr',CAN:'tgr'};
 function priCls(v){if(!v)return 'tgr';if(/^E|^P1F|^PW1/.test(v)||v==='P1')return 'tr';if(/^P2$|^PW2/.test(v)||v==='P3')return 'ta';return 'tb';}
-const selDv=document.getElementById('f-dv'),selSc=document.getElementById('f-sc'),selBld=document.getElementById('f-bld'),selSt=document.getElementById('f-st'),selPr=document.getElementById('f-pr'),selOt=document.getElementById('f-ot'),selPd=document.getElementById('f-pd');
-function ao(s,v,l){const o=document.createElement('option');o.value=v;o.textContent=l;s.appendChild(o);}
-RAW.ldv.forEach((v,i)=>{if(v&&!v.includes('INACTIVE'))ao(selDv,i,v);});
-RAW.ldv.forEach((v,i)=>{if(v&&v.includes('INACTIVE'))ao(selDv,i,v);});
-RAW.ls.forEach((v,i)=>ao(selSt,i,v+(SL[v]?' – '+SL[v]:'')));
-RAW.lp.forEach((v,i)=>ao(selPr,i,v));
-RAW.lo.forEach((v,i)=>{if(v)ao(selOt,i,v);});
-RAW.lsc.forEach((v,i)=>{if(v)ao(selSc,i,v);});
-RAW.lb.forEach((v,i)=>{if(v)ao(selBld,i,v);});
-[...RAW.lpd.map((v,i)=>({v,i})).filter(x=>x.v)].sort((a,b)=>a.v.localeCompare(b.v)).forEach(x=>ao(selPd,x.i,x.v));
-selDv.addEventListener('change',()=>{
-  const dvI=parseInt(selDv.value),dvN=dvI>=0?RAW.ldv[dvI]:null;
-  selSc.innerHTML='<option value="-1">All Locations</option>';
-  selBld.innerHTML='<option value="-1">All Buildings</option>';
-  if(dvN&&DIV_CITIES[dvN])DIV_CITIES[dvN].forEach(c=>{const i=RAW.lsc.indexOf(c);if(i>=0)ao(selSc,i,c);});
-  else RAW.lsc.forEach((v,i)=>{if(v)ao(selSc,i,v);});
-  selSc.value='-1';selBld.value='-1';
-  rebuildBld(dvI>=0?dvI:null,-1);page=1;apply();
-});
-selSc.addEventListener('change',()=>{rebuildBld(parseInt(selDv.value)>=0?parseInt(selDv.value):null,parseInt(selSc.value));page=1;apply();});
-function rebuildBld(dvI,scI){
-  selBld.innerHTML='<option value="-1">All Buildings</option>';
-  const seen=new Set();
-  RAW.rows.forEach(r=>{if(dvI!==null&&dvI>=0&&r[C.DV]!==dvI)return;if(scI>=0&&r[C.SC]!==scI)return;seen.add(r[C.B]);});
-  RAW.lb.forEach((v,i)=>{if(v&&seen.has(i))ao(selBld,i,v);});
+// ── Multi-select widget factory ──────────────────────────────────────────
+function makeMSel(id,placeholder){
+  const el=document.getElementById(id);
+  const btn=el.querySelector('.msel-btn');
+  const lbl=btn.querySelector('.msel-lbl');
+  const drop=el.querySelector('.msel-drop');
+  const srch=el.querySelector('.msel-search');
+  const list=el.querySelector('.msel-list');
+  const clrBtn=el.querySelector('.msel-clr');
+  let items=[],sel=new Set(),onCh=null;
+  function updBtn(){
+    const n=sel.size;
+    let b=btn.querySelector('.msel-badge');
+    if(n===0){lbl.textContent=placeholder;if(b)b.remove();}
+    else{
+      lbl.textContent=n===1?items.find(x=>x.idx===[...sel][0])?.label||placeholder:n+' selected';
+      if(!b){b=document.createElement('span');b.className='msel-badge';btn.insertBefore(b,btn.querySelector('.msel-arr'));}
+      b.textContent=n;
+    }
+  }
+  function renderList(f){
+    list.innerHTML='';
+    const fl=f.toLowerCase();
+    const vis=fl?items.filter(x=>x.label.toLowerCase().includes(fl)):items;
+    if(!vis.length){list.innerHTML='<div class="msel-empty">No matches</div>';return;}
+    const frag=document.createDocumentFragment();
+    vis.forEach(({idx,label})=>{
+      const row=document.createElement('div');row.className='msel-item';
+      const cb=document.createElement('input');cb.type='checkbox';cb.id=id+'_'+idx;cb.checked=sel.has(idx);
+      const lb=document.createElement('label');lb.htmlFor=cb.id;lb.textContent=label;lb.title=label;
+      cb.addEventListener('change',()=>{if(cb.checked)sel.add(idx);else sel.delete(idx);updBtn();if(onCh)onCh();});
+      row.appendChild(cb);row.appendChild(lb);frag.appendChild(row);
+    });
+    list.appendChild(frag);
+  }
+  btn.addEventListener('click',e=>{
+    e.stopPropagation();
+    const wasOpen=!drop.hidden;
+    document.querySelectorAll('.msel-drop').forEach(d=>{d.hidden=true;});
+    document.querySelectorAll('.msel-btn').forEach(b=>b.classList.remove('open'));
+    if(!wasOpen){drop.hidden=false;btn.classList.add('open');srch.value='';renderList('');srch.focus();}
+  });
+  srch.addEventListener('input',()=>renderList(srch.value));
+  srch.addEventListener('click',e=>e.stopPropagation());
+  clrBtn.addEventListener('click',e=>{e.stopPropagation();sel.clear();updBtn();renderList(srch.value);if(onCh)onCh();});
+  document.addEventListener('click',()=>{drop.hidden=true;btn.classList.remove('open');});
+  return{
+    setItems(arr){items=arr;sel=new Set([...sel].filter(i=>items.some(x=>x.idx===i)));updBtn();},
+    getSel(){return sel;},
+    clear(){sel.clear();updBtn();},
+    onChange(fn){onCh=fn;}
+  };
 }
-['f-bld','f-st','f-pr','f-ot','f-pd'].forEach(id=>document.getElementById(id).addEventListener('change',()=>{page=1;apply();}));
+// ── Instantiate multi-selects ────────────────────────────────────────────
+const msDv=makeMSel('ms-dv','All Divisions');
+const msSc=makeMSel('ms-sc','All Locations');
+const msBld=makeMSel('ms-bld','All Buildings');
+const msSt=makeMSel('ms-st','All Statuses');
+const msPr=makeMSel('ms-pr','All Priorities');
+const msOt=makeMSel('ms-ot','All Types');
+const msPd=makeMSel('ms-pd','All Problems');
+// Populate initial items
+msDv.setItems(RAW.ldv.map((v,i)=>({idx:i,label:v})).filter(x=>x.label).sort((a,b)=>a.label.localeCompare(b.label)));
+msSt.setItems(RAW.ls.map((v,i)=>({idx:i,label:v+(SL[v]?' – '+SL[v]:'')})).filter(x=>x.label));
+msPr.setItems(RAW.lp.map((v,i)=>({idx:i,label:v})).filter(x=>x.label));
+msOt.setItems(RAW.lo.map((v,i)=>({idx:i,label:v})).filter(x=>x.label).sort((a,b)=>a.label.localeCompare(b.label)));
+msSc.setItems(RAW.lsc.map((v,i)=>({idx:i,label:v})).filter(x=>x.label).sort((a,b)=>a.label.localeCompare(b.label)));
+msBld.setItems(RAW.lb.map((v,i)=>({idx:i,label:v})).filter(x=>x.label).sort((a,b)=>a.label.localeCompare(b.label)));
+msPd.setItems([...RAW.lpd.map((v,i)=>({idx:i,label:v})).filter(x=>x.label)].sort((a,b)=>a.label.localeCompare(b.label)));
+// Cascading: Division → City → Building
+msDv.onChange(()=>{
+  const dvSel=msDv.getSel();
+  let cities;
+  if(dvSel.size===0){cities=RAW.lsc.map((v,i)=>({idx:i,label:v})).filter(x=>x.label);}
+  else{const cs=new Set();dvSel.forEach(di=>{const n=RAW.ldv[di];if(DIV_CITIES[n])DIV_CITIES[n].forEach(c=>cs.add(c));});cities=RAW.lsc.map((v,i)=>({idx:i,label:v})).filter(x=>x.label&&cs.has(x.label));}
+  cities.sort((a,b)=>a.label.localeCompare(b.label));
+  msSc.setItems(cities);rebuildBld();page=1;apply();
+});
+msSc.onChange(()=>{rebuildBld();page=1;apply();});
+function rebuildBld(){
+  const dvSel=msDv.getSel(),scSel=msSc.getSel(),seen=new Set();
+  RAW.rows.forEach(r=>{if(dvSel.size>0&&!dvSel.has(r[C.DV]))return;if(scSel.size>0&&!scSel.has(r[C.SC]))return;seen.add(r[C.B]);});
+  msBld.setItems(RAW.lb.map((v,i)=>({idx:i,label:v})).filter(x=>x.label&&seen.has(x.idx)).sort((a,b)=>a.label.localeCompare(b.label)));
+}
+[msBld,msSt,msPr,msOt,msPd].forEach(ms=>ms.onChange(()=>{page=1;apply();}));
 document.getElementById('f-q').addEventListener('input',()=>{page=1;apply();});
 document.getElementById('f-df').addEventListener('change',()=>{page=1;apply();});
 document.getElementById('f-dt').addEventListener('change',()=>{page=1;apply();});
 document.getElementById('btn-reset').addEventListener('click',()=>{
   document.getElementById('f-q').value='';document.getElementById('f-df').value='';document.getElementById('f-dt').value='';
-  selDv.value='-1';selSt.value='-1';selPr.value='-1';selOt.value='-1';selPd.value='-1';
-  selSc.innerHTML='<option value="-1">All Locations</option>';RAW.lsc.forEach((v,i)=>{if(v)ao(selSc,i,v);});
-  selBld.innerHTML='<option value="-1">All Buildings</option>';RAW.lb.forEach((v,i)=>{if(v)ao(selBld,i,v);});
-  selSc.value='-1';selBld.value='-1';page=1;apply();
+  [msDv,msSc,msBld,msSt,msPr,msOt,msPd].forEach(ms=>ms.clear());
+  msSc.setItems(RAW.lsc.map((v,i)=>({idx:i,label:v})).filter(x=>x.label).sort((a,b)=>a.label.localeCompare(b.label)));
+  msBld.setItems(RAW.lb.map((v,i)=>({idx:i,label:v})).filter(x=>x.label).sort((a,b)=>a.label.localeCompare(b.label)));
+  page=1;apply();
 });
 let filtered=RAW.rows,sortCol=-1,sortDir=1,page=1;
 const PS=75;
 function apply(){
   const q=document.getElementById('f-q').value.toLowerCase().trim();
-  const dvI=parseInt(selDv.value),scI=parseInt(selSc.value),bldI=parseInt(selBld.value);
-  const stI=parseInt(selSt.value),prI=parseInt(selPr.value),otI=parseInt(selOt.value),pdI=parseInt(selPd.value);
+  const dvSel=msDv.getSel(),scSel=msSc.getSel(),bldSel=msBld.getSel();
+  const stSel=msSt.getSel(),prSel=msPr.getSel(),otSel=msOt.getSel(),pdSel=msPd.getSel();
   const dfS=document.getElementById('f-df').value,dtS=document.getElementById('f-dt').value;
   const dfD=dfS?isoToDays(dfS):0,dtD=dtS?isoToDays(dtS):0;
   filtered=RAW.rows.filter(r=>{
-    if(dvI>=0&&r[C.DV]!==dvI)return false;
-    if(scI>=0&&r[C.SC]!==scI)return false;
-    if(bldI>=0&&r[C.B]!==bldI)return false;
-    if(stI>=0&&r[C.S]!==stI)return false;
-    if(prI>=0&&r[C.P]!==prI)return false;
-    if(otI>=0&&r[C.O]!==otI)return false;
-    if(pdI>=0&&r[C.PD]!==pdI)return false;
+    if(dvSel.size>0&&!dvSel.has(r[C.DV]))return false;
+    if(scSel.size>0&&!scSel.has(r[C.SC]))return false;
+    if(bldSel.size>0&&!bldSel.has(r[C.B]))return false;
+    if(stSel.size>0&&!stSel.has(r[C.S]))return false;
+    if(prSel.size>0&&!prSel.has(r[C.P]))return false;
+    if(otSel.size>0&&!otSel.has(r[C.O]))return false;
+    if(pdSel.size>0&&!pdSel.has(r[C.PD]))return false;
     if(dfS&&r[C.E]&&r[C.E]<dfD)return false;
     if(dtS&&r[C.E]&&r[C.E]>dtD)return false;
     if(q){
@@ -327,27 +411,37 @@ function renderPg(){
 function mkPb(pg,l,fn,d,on){const b=document.createElement('button');b.className='pb'+(on?' on':'');b.textContent=l;b.disabled=!!d;b.addEventListener('click',fn);pg.appendChild(b);}
 function pgRange(c,t){if(t<=7)return Array.from({length:t},(_,i)=>i+1);const p=[1];if(c>3)p.push('…');for(let x=Math.max(2,c-1);x<=Math.min(t-1,c+1);x++)p.push(x);if(c<t-2)p.push('…');p.push(t);return p;}
 function scTop(){document.getElementById('tw').scrollTop=0;}
-const CSV_H=['WO Number','Age (days)','Status Code','Status Label','Priority','Order Type','Problem Description','Building','Floor','State/City','Division','Technician','Entered Date','Completed Date','Labor Hours','Est Cost','Actual Cost'];
-function buildCSV(){
-  const esc=v=>{const s=String(v??'');return s.includes(',')||s.includes('"')||s.includes('\n')?'"'+s.replace(/"/g,'""')+'"':s;};
-  const lines=[CSV_H.join(',')];
-  filtered.forEach(r=>{const sc=RAW.ls[r[C.S]]||'';lines.push([r[C.WO],r[C.AGE]||'',sc,SL[sc]||sc,RAW.lp[r[C.P]]||'',RAW.lo[r[C.O]]||'',RAW.lpd[r[C.PD]]||'',RAW.lb[r[C.B]]||'',RAW.lfl[r[C.FL]]||'',RAW.lsc[r[C.SC]]||'',RAW.ldv[r[C.DV]]||'',RAW.lt[r[C.T]]||'',dayToIso(r[C.E]),r[C.C]?dayToIso(r[C.C]):'',r[C.LH]||'',r[C.COST]||'',r[C.AC]||''].map(esc).join(','));});
-  return lines.join('\n');
+const XLS_H=['WO Number','Age (days)','Status Code','Status Label','Priority','Order Type','Problem Description','Building','Floor','State/City','Division','Technician','Entered Date','Completed Date','Labor Hours','Est Cost','Actual Cost'];
+function buildRows(rows){
+  const data=[XLS_H];
+  rows.forEach(r=>{const sc=RAW.ls[r[C.S]]||'';data.push([r[C.WO],r[C.AGE]||'',sc,SL[sc]||sc,RAW.lp[r[C.P]]||'',RAW.lo[r[C.O]]||'',RAW.lpd[r[C.PD]]||'',RAW.lb[r[C.B]]||'',RAW.lfl[r[C.FL]]||'',RAW.lsc[r[C.SC]]||'',RAW.ldv[r[C.DV]]||'',RAW.lt[r[C.T]]||'',dayToIso(r[C.E]),r[C.C]?dayToIso(r[C.C]):'',r[C.LH]||'',r[C.COST]||'',r[C.AC]||'']);});
+  return data;
+}
+function doExport(rows,filename){
+  const dlBtn=document.getElementById('btn-dl');
+  dlBtn.textContent='Generating…';dlBtn.disabled=true;
+  setTimeout(()=>{
+    try{
+      const ws=XLSX.utils.aoa_to_sheet(buildRows(rows));
+      const wb=XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb,ws,'Work Orders');
+      XLSX.writeFile(wb,filename);
+      dlBtn.textContent='✓ Downloaded!';dlBtn.classList.add('done');
+      setTimeout(()=>{dlBtn.textContent='⬇ Download Excel';dlBtn.classList.remove('done');dlBtn.disabled=false;},2500);
+    }catch(e){dlBtn.textContent='⬇ Download Excel';dlBtn.disabled=false;alert('Export failed: '+e.message);}
+  },30);
 }
 document.getElementById('btn-export').addEventListener('click',()=>{
-  const n=filtered.length;
-  document.getElementById('modal-sub').textContent=n.toLocaleString()+' rows · '+CSV_H.length+' columns — copy and paste into Excel or save as .csv';
+  document.getElementById('exp-filt-cnt').textContent='('+filtered.length.toLocaleString()+' rows)';
+  document.getElementById('exp-all-cnt').textContent='('+RAW.rows.length.toLocaleString()+' rows)';
+  document.getElementById('exp-r-filt').checked=true;
   document.getElementById('overlay').hidden=false;
-  document.getElementById('modal-ta').value='Generating…';
-  setTimeout(()=>{
-    const csv=buildCSV();
-    document.getElementById('modal-ta').value=csv;
-    document.getElementById('modal-ta').select();
-    const btn=document.getElementById('btn-copy');
-    btn.onclick=()=>{
-      navigator.clipboard.writeText(csv).then(()=>{btn.textContent='✓ Copied!';btn.classList.add('done');setTimeout(()=>{btn.textContent='Copy to clipboard';btn.classList.remove('done');},2500);}).catch(()=>{document.getElementById('modal-ta').select();try{document.execCommand('copy');}catch(e){}btn.textContent='✓ Copied!';btn.classList.add('done');setTimeout(()=>{btn.textContent='Copy to clipboard';btn.classList.remove('done');},2500);});
-    };
-  },30);
+});
+document.getElementById('btn-dl').addEventListener('click',()=>{
+  const scope=document.querySelector('input[name="exp-scope"]:checked').value;
+  const rows=scope==='all'?RAW.rows:filtered;
+  const ts=new Date().toISOString().slice(0,10);
+  doExport(rows,'CMA_WorkOrders_'+(scope==='all'?'All':'Filtered')+'_'+ts+'.xlsx');
 });
 function closeModal(){document.getElementById('overlay').hidden=true;}
 document.getElementById('modal-close').addEventListener('click',closeModal);
